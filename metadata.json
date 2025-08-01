@@ -1,0 +1,6 @@
+{
+  "name": "JafaSol - AI-Powered School Management System",
+  "description": "A modern, comprehensive school management system designed to streamline administrative and academic tasks. It features modules for student information, attendance, exams, fees, and provides AI-powered analytics and reports using Gemini.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
