@@ -183,31 +183,8 @@ const Login: React.FC<LoginProps> = ({ onCredentialsSuccess, onFailure, onSwitch
                       </div>
                   </div>
 
-                  <div className="mt-6 grid grid-cols-1 gap-3">
-                      <button
-                          type="button"
-                          onClick={() => quickLogin('admin@jafasol.com', 'Jafasol2024!')}
-                          disabled={isLoading}
-                          className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                          Admin Login
-                      </button>
-                      <button
-                          type="button"
-                          onClick={() => quickLogin('system@jafasol.com', 'System2024!')}
-                          disabled={isLoading}
-                          className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                          System Admin
-                      </button>
-                      <button
-                          type="button"
-                          onClick={() => quickLogin('demo@jafasol.com', 'Demo2024!')}
-                          disabled={isLoading}
-                          className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                          Demo Admin
-                      </button>
+                  <div className="mt-6 text-center text-sm text-gray-500">
+                      <p>Enter your credentials to login</p>
                   </div>
               </div>
           </form>
