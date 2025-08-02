@@ -1,45 +1,91 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { LogoIcon } from './icons';
+import apiClient from '../api';
 
 interface LoginProps {
-  users: User[];
   onCredentialsSuccess: (user: User) => void;
   onFailure: (email: string) => void;
   onSwitchToRegister: () => void;
 }
 
-/*
-  In a real application, password verification would happen on a secure backend server 
-  using a strong hashing algorithm like BCrypt or Argon2. 
-  This frontend simulation uses a plain email check for demonstration purposes.
-*/
-const Login: React.FC<LoginProps> = ({ users, onCredentialsSuccess, onFailure, onSwitchToRegister }) => {
+const Login: React.FC<LoginProps> = ({ onCredentialsSuccess, onFailure, onSwitchToRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    // In this demo, any password works for a valid email
-    if (user) {
-      setError('');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await apiClient.login(email, password);
+      
+      // Set the token for future API calls
+      apiClient.setToken(response.token);
+      
+      // Transform the user data to match our frontend User type
+      const user: User = {
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: {
+          id: response.user.role || 'admin',
+          name: response.user.role || 'Admin',
+          permissions: {} // Will be loaded separately if needed
+        },
+        status: 'Active',
+        avatarUrl: response.user.avatarUrl,
+        lastLoginAt: response.user.lastLoginAt,
+        twoFactorEnabled: response.user.twoFactorEnabled || false
+      };
+
       onCredentialsSuccess(user);
-    } else {
-      const message = 'Invalid email or password. Please try again.';
-      setError(message);
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      setError(error.message || 'Login failed. Please try again.');
       onFailure(email);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const quickLogin = (userEmail: string) => {
-      const user = users.find(u => u.email === userEmail);
-      if (user) {
-          onCredentialsSuccess(user);
-      }
-  }
+  const quickLogin = async (userEmail: string, userPassword: string) => {
+    setEmail(userEmail);
+    setPassword(userPassword);
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await apiClient.login(userEmail, userPassword);
+      apiClient.setToken(response.token);
+      
+      const user: User = {
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: {
+          id: response.user.role || 'admin',
+          name: response.user.role || 'Admin',
+          permissions: {}
+        },
+        status: 'Active',
+        avatarUrl: response.user.avatarUrl,
+        lastLoginAt: response.user.lastLoginAt,
+        twoFactorEnabled: response.user.twoFactorEnabled || false
+      };
+
+      onCredentialsSuccess(user);
+    } catch (error: any) {
+      console.error('Quick login failed:', error);
+      setError(error.message || 'Quick login failed.');
+      onFailure(userEmail);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
@@ -64,7 +110,8 @@ const Login: React.FC<LoginProps> = ({ users, onCredentialsSuccess, onFailure, o
                           type="email"
                           autoComplete="email"
                           required
-                          className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm"
+                          disabled={isLoading}
+                          className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm disabled:bg-gray-100"
                           placeholder="Email address"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -78,8 +125,9 @@ const Login: React.FC<LoginProps> = ({ users, onCredentialsSuccess, onFailure, o
                           type="password"
                           autoComplete="current-password"
                           required
-                          className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm"
-                          placeholder="Password (any password works)"
+                          disabled={isLoading}
+                          className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm disabled:bg-gray-100"
+                          placeholder="Password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                       />
@@ -98,33 +146,71 @@ const Login: React.FC<LoginProps> = ({ users, onCredentialsSuccess, onFailure, o
                           Forgot your password?
                       </a>
                   </div>
+                  <div className="text-sm">
+                      <button
+                          type="button"
+                          onClick={onSwitchToRegister}
+                          className="font-medium text-teal-600 hover:text-teal-500"
+                      >
+                          Create account
+                      </button>
+                  </div>
               </div>
 
               <div>
                   <button
                       type="submit"
-                      className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                      disabled={isLoading}
+                      className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                      Sign in
+                      {isLoading ? (
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                      ) : null}
+                      {isLoading ? 'Signing in...' : 'Sign in'}
                   </button>
               </div>
-          </form>
-          <div className="text-center text-sm text-gray-500 space-y-2">
-              <p>Or quick login as:</p>
-              <div className="flex justify-center gap-2 flex-wrap">
-                  <button onClick={() => quickLogin('admin@edusys.com')} className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors text-xs">Admin</button>
-                  <button onClick={() => quickLogin('m.wanjiku@edusys.com')} className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors text-xs">Class Teacher</button>
-                  <button onClick={() => quickLogin('jane.d@email.com')} className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors text-xs">Guardian</button>
+
+              <div className="mt-6">
+                  <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-gray-300" />
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                          <span className="px-2 bg-white text-gray-500">Quick login</span>
+                      </div>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-1 gap-3">
+                      <button
+                          type="button"
+                          onClick={() => quickLogin('admin@jafasol.com', 'Jafasol2024!')}
+                          disabled={isLoading}
+                          className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                          Admin Login
+                      </button>
+                      <button
+                          type="button"
+                          onClick={() => quickLogin('system@jafasol.com', 'System2024!')}
+                          disabled={isLoading}
+                          className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                          System Admin
+                      </button>
+                      <button
+                          type="button"
+                          onClick={() => quickLogin('demo@jafasol.com', 'Demo2024!')}
+                          disabled={isLoading}
+                          className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                          Demo Admin
+                      </button>
+                  </div>
               </div>
-          </div>
-        </div>
-        <div className="mt-4 text-center text-sm text-gray-600">
-            <p>
-                Student or new Guardian?{' '}
-                <button onClick={onSwitchToRegister} className="font-medium text-teal-600 hover:text-teal-500">
-                    Register here
-                </button>
-            </p>
+          </form>
         </div>
       </div>
     </div>

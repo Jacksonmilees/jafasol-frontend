@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Page, User, Student, Role, AuditLog } from './types';
-import { MOCK_STUDENTS, MOCK_USERS, MOCK_ROLES, MOCK_AUDIT_LOGS } from './constants';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -25,7 +24,7 @@ import { Register } from './components/Register';
 import AuditLogs from './components/AuditLogs';
 import TwoFactorSetup from './components/security/TwoFactorSetup';
 import TwoFactorVerification from './components/security/TwoFactorVerification';
-
+import apiClient from './api';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
@@ -34,53 +33,105 @@ const App: React.FC = () => {
   const [userFor2FA, setUserFor2FA] = useState<User | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
-  // Lifted state
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS);
-  const [roles, setRoles] = useState<Role[]>(MOCK_ROLES);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
+  // State for real data from API
+  const [users, setUsers] = useState<User[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Load data from API when user is authenticated
+  useEffect(() => {
+    if (currentUser) {
+      loadDataFromAPI();
+    }
+  }, [currentUser]);
 
-  const addAuditLog = (user: User | null, action: AuditLog['action'], target: AuditLog['target'], details: string) => {
-      const newLog: AuditLog = {
-          id: `LOG${Date.now()}`,
-          userId: user?.id,
-          userName: user?.name,
-          action,
-          target,
-          timestamp: new Date().toISOString(),
-          details,
-      };
-      setAuditLogs(prev => [newLog, ...prev]);
+  const loadDataFromAPI = async () => {
+    setIsLoading(true);
+    try {
+      // Load users
+      const usersResponse = await apiClient.getUsers();
+      setUsers(usersResponse.users || []);
+
+      // Load students
+      const studentsResponse = await apiClient.getStudents();
+      setStudents(studentsResponse.students || []);
+
+      // Load audit logs
+      const auditResponse = await apiClient.getAuditLogs();
+      setAuditLogs(auditResponse.logs || []);
+
+      // Load roles (if available)
+      // Note: Roles might be loaded differently based on your API structure
+      setRoles([]); // Will be populated when API endpoint is available
+
+    } catch (error) {
+      console.error('Failed to load data from API:', error);
+      // Fallback to empty arrays if API fails
+      setUsers([]);
+      setStudents([]);
+      setAuditLogs([]);
+      setRoles([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setUserFor2FA(null);
-    setAuthScreen('login');
-    setCurrentPage(Page.Dashboard); // Reset to default page for next login
+  const addAuditLog = async (user: User | null, action: AuditLog['action'], target: AuditLog['target'], details: string) => {
+    const newLog: AuditLog = {
+      id: `LOG${Date.now()}`,
+      userId: user?.id,
+      userName: user?.name,
+      action,
+      target,
+      timestamp: new Date().toISOString(),
+      details,
+    };
+    
+    setAuditLogs(prev => [newLog, ...prev]);
+    
+    // In a real app, you'd also send this to the API
+    try {
+      // await apiClient.createAuditLog(newLog);
+    } catch (error) {
+      console.error('Failed to save audit log:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await apiClient.logout();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+    } finally {
+      apiClient.clearToken();
+      setCurrentUser(null);
+      setUserFor2FA(null);
+      setAuthScreen('login');
+      setCurrentPage(Page.Dashboard);
+    }
   };
   
   const handleRegisterSuccess = () => {
-      setAuthScreen('login');
-      // Potentially show a success message on the login screen
+    setAuthScreen('login');
   };
 
   const handleCredentialsSuccess = (user: User) => {
     addAuditLog(user, 'Login Success', { type: 'Auth', name: user.email }, `IP: 192.168.1.${Math.floor(Math.random() * 254) + 1}`);
     if (user.role.name === 'Admin' && user.twoFactorEnabled) {
-        setUserFor2FA(user);
-        setAuthScreen('2fa');
+      setUserFor2FA(user);
+      setAuthScreen('2fa');
     } else if (user.role.name === 'Admin' && !user.twoFactorEnabled) {
-        setUserFor2FA(user);
-        setAuthScreen('2fa-setup');
+      setUserFor2FA(user);
+      setAuthScreen('2fa-setup');
     } else {
-        setCurrentUser(user);
+      setCurrentUser(user);
     }
   };
 
   const handleLoginFailure = (email: string) => {
-      addAuditLog(null, 'Login Failure', { type: 'Auth', name: email }, `IP: 192.168.1.${Math.floor(Math.random() * 254) + 1}`);
+    addAuditLog(null, 'Login Failure', { type: 'Auth', name: email }, `IP: 192.168.1.${Math.floor(Math.random() * 254) + 1}`);
   };
 
   const handle2FASuccess = () => {
@@ -93,123 +144,218 @@ const App: React.FC = () => {
 
   const handle2FASetupSuccess = () => {
     if(userFor2FA) {
-        const userWith2FA = { ...userFor2FA, twoFactorEnabled: true };
-        const updatedUsers = users.map(u => u.id === userWith2FA.id ? userWith2FA : u);
-        setUsers(updatedUsers);
-        setCurrentUser(userWith2FA);
-        setUserFor2FA(null);
-        setAuthScreen('login');
-    }
-  };
-
-  const handleAuthCancel = () => {
+      const userWith2FA = { ...userFor2FA, twoFactorEnabled: true };
+      setCurrentUser(userWith2FA);
       setUserFor2FA(null);
       setAuthScreen('login');
+    }
   }
 
-  const renderContent = () => {
-    if (!currentUser) return null;
-
-    switch (currentPage) {
-      case Page.Dashboard:
-        return <Dashboard currentUser={currentUser} setCurrentPage={setCurrentPage} />;
-      case Page.UserManagement:
-        return <UserManagement currentUser={currentUser} users={users} setUsers={setUsers} roles={roles} />;
-      case Page.AuditLogs:
-        return <AuditLogs logs={auditLogs} />;
-      case Page.Students:
-        return <StudentManagement currentUser={currentUser}/>;
-      case Page.Teachers:
-        return <TeacherManagement currentUser={currentUser} />;
-      case Page.Academics:
-        return <Academics currentUser={currentUser} />;
-      case Page.Attendance:
-        return <Attendance />;
-      case Page.Timetable:
-        return <Timetable />;
-      case Page.Exams:
-        return <Exams currentUser={currentUser} />;
-      case Page.Fees:
-        return <Fees />;
-      case Page.Communication:
-        return <Communication />;
-      case Page.Library:
-        return <Library />;
-      case Page.LearningResources:
-        return <LearningResources currentUser={currentUser} />;
-      case Page.Transport:
-        return <Transport />;
-      case Page.DocumentStore:
-        return <DocumentStore />;
-      case Page.Reports:
-        return <Reports currentUser={currentUser}/>;
-      case Page.Settings:
-        return <Settings currentUser={currentUser} users={users} setUsers={setUsers} roles={roles} setRoles={setRoles} auditLogs={auditLogs} />;
-      default:
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-6xl mb-4">🚧</div>
-            <h2 className="text-2xl font-bold">{currentPage}</h2>
-            <p>This module is under construction.</p>
-          </div>
-        );
-    }
+  const handleAuthCancel = () => {
+    setUserFor2FA(null);
+    setAuthScreen('login');
   };
 
-  if (!currentUser) {
-    switch(authScreen) {
+  const renderContent = () => {
+    if (!currentUser) {
+      switch (authScreen) {
         case 'login':
-            return <Login users={users} onCredentialsSuccess={handleCredentialsSuccess} onFailure={handleLoginFailure} onSwitchToRegister={() => setAuthScreen('register')} />;
+          return (
+            <Login
+              onCredentialsSuccess={handleCredentialsSuccess}
+              onFailure={handleLoginFailure}
+              onSwitchToRegister={() => setAuthScreen('register')}
+            />
+          );
         case 'register':
-            return <Register 
-                students={students}
-                setStudents={setStudents}
-                users={users}
-                setUsers={setUsers}
-                onSwitchToLogin={() => setAuthScreen('login')} 
-                onRegisterSuccess={handleRegisterSuccess}
-                />;
+          return (
+            <Register
+              onRegisterSuccess={handleRegisterSuccess}
+              onSwitchToLogin={() => setAuthScreen('login')}
+            />
+          );
         case '2fa':
-            if (!userFor2FA) { setAuthScreen('login'); return null; }
-            return <TwoFactorVerification user={userFor2FA} onSuccess={handle2FASuccess} onCancel={handleAuthCancel} />;
+          return (
+            <TwoFactorVerification
+              user={userFor2FA!}
+              onSuccess={handle2FASuccess}
+              onCancel={handleAuthCancel}
+            />
+          );
         case '2fa-setup':
-            if (!userFor2FA) { setAuthScreen('login'); return null; }
-            return <TwoFactorSetup user={userFor2FA} onSuccess={handle2FASetupSuccess} onCancel={handleAuthCancel} />;
+          return (
+            <TwoFactorSetup
+              user={userFor2FA!}
+              onSuccess={handle2FASetupSuccess}
+              onCancel={handleAuthCancel}
+            />
+          );
         default:
-             setAuthScreen('login');
-             return null;
+          return (
+            <Login
+              onCredentialsSuccess={handleCredentialsSuccess}
+              onFailure={handleLoginFailure}
+              onSwitchToRegister={() => setAuthScreen('register')}
+            />
+          );
+      }
     }
-  }
 
-  const isPortalUser = currentUser.role.name === 'Student' || currentUser.role.name === 'Guardian';
-  if (isPortalUser) {
-    return <ParentStudentPortal user={currentUser} users={users} onSetCurrentUser={setCurrentUser} onLogout={handleLogout} />;
-  }
-
-  return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar 
-        currentPage={currentPage} 
-        setCurrentPage={setCurrentPage} 
-        currentUser={currentUser}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-          currentPage={currentPage} 
-          currentUser={currentUser} 
-          users={users}
-          onSetCurrentUser={setCurrentUser} 
-          onLogout={handleLogout} 
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+    // Main application content
+    return (
+      <div className="flex h-screen bg-gray-100">
+        <Sidebar
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          user={currentUser}
+        />
+        
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header
+            user={currentUser}
+            onLogout={handleLogout}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
-          {renderContent()}
-        </main>
+          
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
+            <div className="container mx-auto px-6 py-8">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-teal-600"></div>
+                </div>
+              ) : (
+                <>
+                  {currentPage === Page.Dashboard && (
+                    <Dashboard
+                      user={currentUser}
+                      stats={{
+                        totalStudents: students.length,
+                        totalTeachers: users.filter(u => u.role.name === 'Teacher').length,
+                        totalClasses: 12,
+                        totalRevenue: 450000
+                      }}
+                    />
+                  )}
+                  {currentPage === Page.UserManagement && (
+                    <UserManagement
+                      users={users}
+                      setUsers={setUsers}
+                      roles={roles}
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.AuditLogs && (
+                    <AuditLogs
+                      logs={auditLogs}
+                      currentUser={currentUser}
+                    />
+                  )}
+                  {currentPage === Page.Students && (
+                    <StudentManagement
+                      students={students}
+                      setStudents={setStudents}
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Teachers && (
+                    <TeacherManagement
+                      teachers={users.filter(u => u.role.name === 'Teacher')}
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Academics && (
+                    <Academics
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Attendance && (
+                    <Attendance
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Timetable && (
+                    <Timetable
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Exams && (
+                    <Exams
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Fees && (
+                    <Fees
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Communication && (
+                    <Communication
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Library && (
+                    <Library
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.LearningResources && (
+                    <LearningResources
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Transport && (
+                    <Transport
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.DocumentStore && (
+                    <DocumentStore
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Reports && (
+                    <Reports
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.Settings && (
+                    <Settings
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                  {currentPage === Page.ParentStudentPortal && (
+                    <ParentStudentPortal
+                      currentUser={currentUser}
+                      addAuditLog={addAuditLog}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  return renderContent();
 };
 
 export default App;
