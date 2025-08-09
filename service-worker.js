@@ -2,7 +2,6 @@ const CACHE_NAME = 'jafasol-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/index.tsx',
   '/favicon.svg',
 ];
 
@@ -18,6 +17,13 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Skip service worker for API calls and module scripts
+  if (event.request.url.includes('/api/') || 
+      event.request.destination === 'script' ||
+      event.request.url.includes('.js')) {
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then(response => {

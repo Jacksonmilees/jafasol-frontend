@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Cache - Jafasol</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #14b8a6, #0d9488);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: white;
+            color: #14b8a6;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin: 1rem;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Cache Clear Tool</h1>
+        <p>This will clear your browser cache and reload the latest version of Jafasol.</p>
+        
+        <button onclick="clearCache()">Clear Cache & Reload</button>
+        <button onclick="window.location.href='/'">Go to Main Site</button>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function clearCache() {
+            const status = document.getElementById('status');
+            status.innerHTML = '<p>Clearing cache...</p>';
+            
+            // Clear all caches
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) {
+                        caches.delete(name);
+                    }
+                });
+            }
+            
+            // Clear localStorage and sessionStorage
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Force reload with cache busting
+            setTimeout(() => {
+                window.location.href = '/?v=' + Date.now();
+            }, 1000);
+        }
+        
+        // Auto-clear on page load
+        window.onload = function() {
+            if (window.location.search.includes('autoclear')) {
+                clearCache();
+            }
+        };
+    </script>
+</body>
+</html> 

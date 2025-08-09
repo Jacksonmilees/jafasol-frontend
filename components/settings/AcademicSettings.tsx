@@ -1,18 +1,14 @@
 
 import React from 'react';
-import { AcademicYear, Grade } from '../../types';
+import { User } from '../../types';
 import { SaveIcon } from '../icons';
 
 interface AcademicSettingsProps {
-    academicYear: AcademicYear;
-    setAcademicYear: React.Dispatch<React.SetStateAction<AcademicYear>>;
-    gradingSystem: Grade[];
-    setGradingSystem: React.Dispatch<React.SetStateAction<Grade[]>>;
+    currentUser: User;
 }
 
 export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ 
-    academicYear, setAcademicYear,
-    gradingSystem, setGradingSystem
+    currentUser
 }) => {
 
     const handleGradeChange = (index: number, field: keyof Grade, value: string | number) => {

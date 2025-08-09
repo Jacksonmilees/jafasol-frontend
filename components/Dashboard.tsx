@@ -10,7 +10,7 @@ import { QuickActionsCard } from './dashboard/QuickActionsCard';
 import { TeacherDashboard } from './TeacherDashboard';
 
 interface DashboardProps {
-    currentUser: User;
+    currentUser: User | null;
     setCurrentPage: (page: Page) => void;
 }
 
@@ -22,7 +22,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, setCurrentPage }) =>
         return { totalCollected, totalOutstanding };
     }, []);
 
-  const isTeacher = ['Class Teacher', 'Subject Teacher'].includes(currentUser.role.name);
+  const isTeacher = currentUser && ['Class Teacher', 'Subject Teacher'].includes(currentUser.role.name);
 
   if (isTeacher) {
     return <TeacherDashboard currentUser={currentUser} setCurrentPage={setCurrentPage} />;
@@ -31,7 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, setCurrentPage }) =>
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Welcome back, {currentUser.name.split(' ')[0]}!</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Welcome back, {currentUser?.name?.split(' ')[0] || 'User'}!</h2>
         <p className="text-gray-500 mt-1">Here's a snapshot of your school's performance.</p>
       </div>
 

@@ -7,7 +7,7 @@ import { AttendanceIcon, ExamsIcon, TimetableIcon, BookMarkedIcon, BookOpenIcon,
 import { StudentRow } from './students/StudentRow';
 
 interface TeacherDashboardProps {
-  currentUser: User;
+  currentUser: User | null;
   setCurrentPage: (page: Page) => void;
 }
 
@@ -99,8 +99,8 @@ const ClassTeacherSpecifics: React.FC<{ classInCharge: any }> = ({ classInCharge
 }
 
 export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ currentUser, setCurrentPage }) => {
-    const teacherDetails = MOCK_TEACHERS.find(t => t.id === currentUser.id || t.email === currentUser.email);
-    const myClassInCharge = MOCK_CLASSES.find(c => c.classTeacherId === currentUser.id);
+    const teacherDetails = currentUser ? MOCK_TEACHERS.find(t => t.id === currentUser.id || t.email === currentUser.email) : null;
+    const myClassInCharge = currentUser ? MOCK_CLASSES.find(c => c.classTeacherId === currentUser.id) : null;
     
     const quickActions = [
         { title: 'Mark Attendance', page: Page.Attendance, icon: <AttendanceIcon className="h-6 w-6 text-indigo-500" /> },
@@ -112,11 +112,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ currentUser,
     return (
         <div className="space-y-8">
             <div>
-                <h2 className="text-2xl font-bold text-slate-800">Welcome back, {currentUser.name.split(' ')[0]}!</h2>
+                <h2 className="text-2xl font-bold text-slate-800">Welcome back, {currentUser?.name?.split(' ')[0] || 'User'}!</h2>
                 <p className="text-slate-500 mt-1">Your personalized dashboard is ready.</p>
             </div>
             
-            {myClassInCharge && currentUser.role.name === 'Class Teacher' && <ClassTeacherSpecifics classInCharge={myClassInCharge} />}
+            {myClassInCharge && currentUser?.role?.name === 'Class Teacher' && <ClassTeacherSpecifics classInCharge={myClassInCharge} />}
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

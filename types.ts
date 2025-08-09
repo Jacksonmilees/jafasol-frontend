@@ -19,6 +19,7 @@ export enum Page {
   Transport = 'Transport',
   DocumentStore = 'Documents',
   Settings = 'Settings',
+  ParentStudentPortal = 'Parent Student Portal',
   Logout = 'Logout'
 }
 
@@ -46,6 +47,7 @@ export interface User {
   studentId?: string; // Link user to a student record
   twoFactorEnabled?: boolean;
   twoFactorSecret?: string;
+  modules?: string[]; // School modules assigned to this user
 }
 
 export type AuditLogAction = 'Login Success' | 'Login Failure' | 'User Created' | 'User Updated' | 'Role Updated' | 'Student Deleted' | 'System Settings Changed' | 'DB Backup';
@@ -72,7 +74,7 @@ export type StudentExamRecord = {
 };
 
 export interface Student {
-  id:string;
+  id: string;
   admissionNumber: string;
   firstName: string;
   lastName: string;
@@ -86,17 +88,26 @@ export interface Student {
   examResults?: { [examId: string]: StudentExamRecord };
   guardianName?: string;
   guardianPhone?: string;
+  guardianEmail?: string;
+  address?: string;
+  emergencyContact?: string;
+  medicalConditions?: string;
   isRegistered?: boolean;
+  registrationDate?: string;
 }
 
 export interface Teacher {
-    id: string;
-    name: string;
-    email: string;
-    avatarUrl: string;
-    subjects: string[];
-    classes: string[];
-    status: 'Active' | 'On-leave' | 'Terminated';
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  qualification?: string;
+  employmentDate?: string;
+  email: string;
+  avatarUrl: string;
+  subjects: string[];
+  classes: string[];
+  status: 'Active' | 'On-leave' | 'Terminated';
 }
 
 export interface DashboardStats {

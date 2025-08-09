@@ -1,16 +1,13 @@
 
 import React, { useState } from 'react';
-import { Student } from '../../types';
-import { XIcon, UploadCloudIcon, DownloadIcon } from '../icons';
-
-type NewStudentData = Omit<Student, 'id' | 'status' | 'enrollmentDate' | 'avatarUrl' | 'examResults' | 'isRegistered'>;
+import { DownloadIcon, UploadCloudIcon } from '../icons';
 
 interface BulkUploadModalProps {
     onClose: () => void;
-    onImport: (students: NewStudentData[]) => void;
+    onImport: (file: File) => void;
 }
 
-const CSV_TEMPLATE_HEADERS = 'admissionNumber,firstName,lastName,dateOfBirth,gender,formClass,stream,guardianName,guardianPhone';
+const CSV_TEMPLATE_HEADERS = 'admissionNumber,firstName,lastName,dateOfBirth,gender,formClass,stream,parentName,parentPhone';
 const CSV_TEMPLATE_BODY = 'ADM1009,Ali,Khan,2009-04-15,Male,Form 2,B,Mr. Khan,0722000111\nADM1010,Brenda,Mwangi,2010-07-22,Female,Form 1,C,Mrs. Mwangi,0733222333';
 const CSV_TEMPLATE = `${CSV_TEMPLATE_HEADERS}\n${CSV_TEMPLATE_BODY}`;
 
@@ -18,7 +15,6 @@ const requiredHeaders = ['admissionNumber', 'firstName', 'lastName', 'formClass'
 
 export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ onClose, onImport }) => {
     const [file, setFile] = useState<File | null>(null);
-    const [parsedData, setParsedData] = useState<NewStudentData[]>([]);
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(false);
 
@@ -30,90 +26,47 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ onClose, onImp
                 return;
             }
             setFile(selectedFile);
-            parseCsv(selectedFile);
+            setError('');
         }
-    };
-
-    const parseCsv = (fileToParse: File) => {
-        setError('');
-        setParsedData([]);
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const text = event.target?.result as string;
-            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-            if (lines.length < 2) {
-                setError('CSV file must have a header row and at least one data row.');
-                return;
-            }
-
-            const headers = lines[0].split(',').map(h => h.trim());
-            
-            for (const requiredHeader of requiredHeaders) {
-                if (!headers.includes(requiredHeader)) {
-                    setError(`Missing required column: ${requiredHeader}. Please use the template.`);
-                    return;
-                }
-            }
-
-            const students: NewStudentData[] = [];
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim());
-                const studentObject = headers.reduce((obj, header, index) => {
-                    (obj as any)[header] = values[index] || '';
-                    return obj;
-                }, {} as NewStudentData);
-
-                // Basic validation
-                if (studentObject.admissionNumber && studentObject.firstName && studentObject.lastName) {
-                   students.push(studentObject);
-                }
-            }
-            setParsedData(students);
-        };
-        reader.onerror = () => {
-             setError('Failed to read the file.');
-        }
-        reader.readAsText(fileToParse);
     };
 
     const handleDownloadTemplate = () => {
-        const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", "student_template.csv");
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'students_template.csv';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setError('');
+    };
+
+    const handleImportClick = async () => {
+        if (!file) {
+            setError('Please select a file to upload.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            onImport(file);
+        } catch (error) {
+            setError('Failed to upload file. Please try again.');
+            setLoading(false);
         }
     };
 
-    const handleImportClick = () => {
-        setLoading(true);
-        // Simulate API delay
-        setTimeout(() => {
-            onImport(parsedData);
-            setLoading(false);
-            onClose();
-        }, 1000);
-    };
-
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                    <div className="flex items-center">
-                        <UploadCloudIcon className="h-6 w-6 text-indigo-600 mr-3" />
-                        <h2 className="text-xl font-semibold text-slate-800">Bulk Upload Students</h2>
-                    </div>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100" aria-label="Close">
-                        <XIcon className="h-6 w-6 text-slate-500" />
-                    </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-slate-200">
+                    <h2 className="text-xl font-semibold text-slate-900">Bulk Upload Students</h2>
+                    <p className="text-sm text-slate-500 mt-1">Upload multiple students at once using a CSV file.</p>
                 </div>
-                
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+                <div className="p-6 space-y-6">
                     {/* Step 1 */}
                     <div>
                         <h3 className="text-lg font-medium text-slate-800">Step 1: Get Your CSV Ready</h3>
@@ -132,8 +85,8 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ onClose, onImp
                             <div className="space-y-1 text-center">
                                 <UploadCloudIcon className="mx-auto h-12 w-12 text-slate-400" />
                                 <div className="flex text-sm text-slate-600">
-                                    <span className="relative font-medium text-indigo-600">
-                                        <span>Click to upload</span>
+                                    <span className="relative bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                        Upload a file
                                     </span>
                                     <p className="pl-1">or drag and drop</p>
                                 </div>
@@ -150,30 +103,17 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ onClose, onImp
                         </div>
                     )}
 
-                    {/* Preview */}
-                    {parsedData.length > 0 && (
+                    {/* File selected info */}
+                    {file && (
                         <div>
-                             <h3 className="text-lg font-medium text-slate-800">Step 3: Preview and Confirm</h3>
-                             <p className="text-sm text-slate-500 mt-1">Found <span className="font-bold">{parsedData.length}</span> students. Here's a preview of the first 5 records.</p>
-                             <div className="mt-3 border rounded-lg overflow-hidden">
-                                 <table className="w-full text-sm text-left">
-                                     <thead className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider">
-                                        <tr>
-                                            <th className="py-2 px-4 font-medium">Admission No.</th>
-                                            <th className="py-2 px-4 font-medium">Full Name</th>
-                                            <th className="py-2 px-4 font-medium">Class</th>
-                                        </tr>
-                                     </thead>
-                                     <tbody className="divide-y divide-slate-200">
-                                        {parsedData.slice(0, 5).map((student, index) => (
-                                            <tr key={index}>
-                                                <td className="py-2 px-4">{student.admissionNumber}</td>
-                                                <td className="py-2 px-4">{student.firstName} {student.lastName}</td>
-                                                <td className="py-2 px-4">{student.formClass} {student.stream}</td>
-                                            </tr>
-                                        ))}
-                                     </tbody>
-                                 </table>
+                             <h3 className="text-lg font-medium text-slate-800">Step 3: Confirm Upload</h3>
+                             <p className="text-sm text-slate-500 mt-1">Ready to upload: <span className="font-bold">{file.name}</span></p>
+                             <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                                 <p className="text-sm text-green-700">
+                                     ✓ File selected: {file.name}<br/>
+                                     ✓ Size: {(file.size / 1024).toFixed(1)} KB<br/>
+                                     ✓ Type: CSV file
+                                 </p>
                              </div>
                         </div>
                     )}
@@ -183,8 +123,8 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ onClose, onImp
                     <button type="button" onClick={onClose} disabled={loading} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 font-medium rounded-lg hover:bg-slate-100 transition disabled:opacity-50">
                         Cancel
                     </button>
-                    <button onClick={handleImportClick} disabled={loading || parsedData.length === 0} className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                        {loading ? 'Importing...' : `Import ${parsedData.length} Students`}
+                    <button onClick={handleImportClick} disabled={loading || !file} className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        {loading ? 'Uploading...' : 'Upload Students'}
                     </button>
                 </div>
             </div>

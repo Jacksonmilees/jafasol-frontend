@@ -1,16 +1,17 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Student, User, Page } from '../../types';
-import { MoreHorizontalIcon, EyeIcon, PencilIcon } from '../icons';
+import { MoreHorizontalIcon, EyeIcon, PencilIcon, TrashIcon } from '../icons';
 
 interface StudentRowProps {
     student: Student;
     currentUser: User;
     onViewDetails: (student: Student) => void;
     onEdit: (student: Student) => void;
+    onDelete: (studentId: string) => void;
 }
 
-export const StudentRow: React.FC<StudentRowProps> = ({ student, currentUser, onViewDetails, onEdit }) => {
+export const StudentRow: React.FC<StudentRowProps> = ({ student, currentUser, onViewDetails, onEdit, onDelete }) => {
     const statusColor = student.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800';
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -28,6 +29,14 @@ export const StudentRow: React.FC<StudentRowProps> = ({ student, currentUser, on
     }, [menuRef]);
 
     const canEdit = currentUser.role.permissions[Page.Students]?.edit;
+    const canDelete = currentUser.role.permissions[Page.Students]?.delete;
+
+    const handleDelete = () => {
+        if (window.confirm(`Are you sure you want to delete ${student.firstName} ${student.lastName}?`)) {
+            onDelete(student.id);
+            setIsMenuOpen(false);
+        }
+    };
 
     return (
         <tr className="border-b border-slate-200 hover:bg-slate-50">
@@ -70,6 +79,12 @@ export const StudentRow: React.FC<StudentRowProps> = ({ student, currentUser, on
                                     <button onClick={() => { onEdit(student); setIsMenuOpen(false); }} className="w-full text-left flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100" role="menuitem">
                                         <PencilIcon className="w-4 h-4 mr-3" />
                                         Edit
+                                    </button>
+                                )}
+                                {canDelete && (
+                                    <button onClick={handleDelete} className="w-full text-left flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50" role="menuitem">
+                                        <TrashIcon className="w-4 h-4 mr-3" />
+                                        Delete
                                     </button>
                                 )}
                             </div>

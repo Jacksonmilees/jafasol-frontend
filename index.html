@@ -2,67 +2,56 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JafaSol - School Management</title>
+    <title id="page-title">Jafasol - School Management System</title>
+    <meta name="description" content="AI-powered school management system" />
+    <meta name="keywords" content="school, management, education, AI" />
+    <meta name="author" content="Jafasol" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Jafasol - School Management System" />
+    <meta property="og:description" content="AI-powered school management system" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://jafasol.com" />
+    <meta property="og:image" content="/assets/images/logo.png" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Jafasol - School Management System" />
+    <meta name="twitter:description" content="AI-powered school management system" />
+    <meta name="twitter:image" content="/assets/images/logo.png" />
+    
+    <!-- Favicon and App Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/android-chrome.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/android-chrome.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0d9488" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Inter', sans-serif;
-      }
-      @media print {
-        body {
-          background-color: #fff;
+    
+    <!-- PWA App Icon -->
+    <link rel="icon" type="image/png" href="/assets/images/appicon.png" />
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <script>
+      // Dynamic title based on subdomain
+      (function() {
+        const hostname = window.location.hostname;
+        if (hostname.includes('.jafasol.com') && !hostname.startsWith('www.') && !hostname.startsWith('admin.')) {
+          const subdomain = hostname.split('.')[0];
+          const schoolName = subdomain.charAt(0).toUpperCase() + subdomain.slice(1);
+          document.title = `${schoolName} School - Jafasol`;
+          document.getElementById('page-title').textContent = `${schoolName} School - Jafasol`;
         }
-        .non-printable {
-          display: none !important;
-        }
-        .printable-area {
-          visibility: visible !important;
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          height: auto;
-          box-shadow: none !important;
-          border: none !important;
-        }
-         div.fixed {
-          display: block !important;
-          position: static !important;
-          background-color: transparent !important;
-          backdrop-filter: none !important;
-        }
-        div.fixed > div {
-           display: block !important;
-           max-height: none !important;
-           width: 100% !important;
-           max-width: 100% !important;
-        }
-        div.fixed > div > div.flex-1.overflow-y-auto {
-            overflow: visible !important;
-        }
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-    "@google/genai": "https://esm.sh/@google/genai",
-    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
-    "react/": "https://esm.sh/react@18.3.1/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-  <body class="bg-gray-100 text-gray-800">
+      })();
+    </script>
+  </head>
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
