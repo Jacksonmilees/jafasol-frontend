@@ -1,30 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolClass, Teacher } from '../../types';
 import { XIcon, PencilIcon } from '../icons';
+import { SmartLevelSelector } from '../common/SmartLevelSelector';
+import { SmartStreamSelector } from '../common/SmartStreamSelector';
 
 interface EditClassModalProps {
     schoolClass: SchoolClass;
     teachers: Teacher[];
+    classes: SchoolClass[];
     onClose: () => void;
     onUpdateClass: (classData: SchoolClass) => void;
 }
 
-export const EditClassModal: React.FC<EditClassModalProps> = ({ schoolClass, teachers, onClose, onUpdateClass }) => {
-    const [formData, setFormData] = useState<SchoolClass>(schoolClass);
+export const EditClassModal: React.FC<EditClassModalProps> = ({ schoolClass, teachers, classes, onClose, onUpdateClass }) => {
+    const [formLevel, setFormLevel] = useState(schoolClass.formLevel || '');
+    const [stream, setStream] = useState(schoolClass.stream || '');
+    const [classTeacherId, setClassTeacherId] = useState(schoolClass.classTeacherId || '');
+    const [capacity, setCapacity] = useState(schoolClass.capacity || 50);
+    const [isLoading, setIsLoading] = useState(false);
 
+    // Reset form when schoolClass changes
     useEffect(() => {
-        setFormData(schoolClass);
+        setFormLevel(schoolClass.formLevel || '');
+        setStream(schoolClass.stream || '');
+        setClassTeacherId(schoolClass.classTeacherId || '');
+        setCapacity(schoolClass.capacity || 50);
     }, [schoolClass]);
-    
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        const parsedValue = name === 'formLevel' ? Number(value) : value;
-        setFormData(prev => ({ ...prev, [name]: parsedValue }));
-    };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onUpdateClass(formData);
+        
+        if (!formLevel.trim() || !stream.trim()) {
+            alert('Please fill in all required fields');
+            return;
+        }
+
+        setIsLoading(true);
+        
+        try {
+            const updatedClass: SchoolClass = {
+                ...schoolClass,
+                formLevel: formLevel.trim(),
+                stream: stream.trim(),
+                name: `${formLevel.trim()} ${stream.trim()}`,
+                classTeacherId: classTeacherId || null,
+                capacity
+            };
+
+            await onUpdateClass(updatedClass);
+            onClose();
+        } catch (error) {
+            console.error('Error updating class:', error);
+            alert('Error updating class. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -40,42 +70,99 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ schoolClass, tea
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div>
-                            <label htmlFor="formLevel" className="block text-sm font-medium text-slate-700 mb-1">Form/Year Level</label>
-                            <select name="formLevel" id="formLevel" value={formData.formLevel} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                               {[1, 2, 3, 4].map(level => <option key={level} value={level}>Form {level}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">Class Name</label>
-                            <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" required />
-                        </div>
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Form Level Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Form/Grade Level *
+                        </label>
+                        <SmartLevelSelector
+                            value={formLevel}
+                            onChange={setFormLevel}
+                            placeholder="Select or enter form level (e.g., Primary 1, Form 4, Grade 10)"
+                        />
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div>
-                            <label htmlFor="stream" className="block text-sm font-medium text-slate-700 mb-1">Stream</label>
-                            <select name="stream" id="stream" value={formData.stream} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                                {['A', 'B', 'C', 'D', 'East', 'West', 'North', 'South'].map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
+
+                    {/* Stream Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Stream/Section *
+                        </label>
+                        <SmartStreamSelector
+                            value={stream}
+                            onChange={setStream}
+                            placeholder="Select or enter stream (e.g., A, Blue, Science)"
+                        />
+                    </div>
+
+                    {/* Class Name Preview */}
+                    {formLevel && stream && (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                            <label className="block text-sm font-medium text-indigo-700 mb-1">
+                                Class Name Preview
+                            </label>
+                            <p className="text-lg font-semibold text-indigo-900">
+                                {formLevel} {stream}
+                            </p>
                         </div>
-                        <div>
-                            <label htmlFor="teacher" className="block text-sm font-medium text-slate-700 mb-1">Class Teacher</label>
-                            <select name="teacher" id="teacher" value={formData.teacher} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" required>
-                                {teachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                            </select>
-                        </div>
+                    )}
+
+                    {/* Class Teacher Selection */}
+                    <div>
+                        <label htmlFor="classTeacher" className="block text-sm font-medium text-gray-700 mb-2">
+                            Class Teacher (Optional)
+                        </label>
+                        <select
+                            id="classTeacher"
+                            value={classTeacherId}
+                            onChange={(e) => setClassTeacherId(e.target.value)}
+                            className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                        >
+                            <option value="">No teacher assigned</option>
+                            {teachers
+                                .filter(teacher => teacher.isClassTeacher || teacher.id === classTeacherId)
+                                .map(teacher => (
+                                    <option key={teacher.id} value={teacher.id}>
+                                        {teacher.firstName} {teacher.lastName}
+                                        {teacher.assignedClass && teacher.id !== classTeacherId ? ' (Already assigned)' : ''}
+                                    </option>
+                                ))
+                            }
+                        </select>
+                    </div>
+
+                    {/* Capacity */}
+                    <div>
+                        <label htmlFor="capacity" className="block text-sm font-medium text-gray-700 mb-2">
+                            Class Capacity
+                        </label>
+                        <input
+                            type="number"
+                            id="capacity"
+                            value={capacity}
+                            onChange={(e) => setCapacity(parseInt(e.target.value) || 50)}
+                            min="1"
+                            max="100"
+                            className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
                     </div>
                 </div>
 
                 <div className="p-6 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex justify-end space-x-3">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 font-medium rounded-lg hover:bg-slate-100 transition">
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        disabled={isLoading}
+                        className="px-6 py-3 bg-white text-gray-700 border border-gray-300 font-medium rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+                    >
                         Cancel
                     </button>
-                    <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">
-                        Save Changes
+                    <button 
+                        type="submit" 
+                        disabled={isLoading || !formLevel.trim() || !stream.trim()}
+                        className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isLoading ? 'Updating...' : 'Save Changes'}
                     </button>
                 </div>
             </form>

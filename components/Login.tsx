@@ -41,6 +41,9 @@ const Login: React.FC<LoginProps> = ({ onCredentialsSuccess, onFailure, onSwitch
         twoFactorEnabled: response.user.twoFactorEnabled || false
       };
 
+      // Save user data to localStorage for persistence
+      apiClient.saveUserData(user);
+
       onCredentialsSuccess(user);
     } catch (error: any) {
       console.error('Login failed:', error);

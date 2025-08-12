@@ -2,21 +2,54 @@
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
+  private readonly TOKEN_KEY = 'jafasol_auth_token';
+  private readonly USER_KEY = 'jafasol_user_data';
 
   constructor() {
     this.baseURL = this.getBaseURL();
+    // Restore token from localStorage on initialization
+    this.restoreToken();
   }
 
   setToken(token: string) {
     this.token = token;
+    // Persist token to localStorage
+    localStorage.setItem(this.TOKEN_KEY, token);
   }
 
   clearToken() {
     this.token = null;
+    // Remove token from localStorage
+    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.USER_KEY);
   }
 
   getToken(): string | null {
     return this.token;
+  }
+
+  // Restore token from localStorage
+  private restoreToken() {
+    const savedToken = localStorage.getItem(this.TOKEN_KEY);
+    if (savedToken) {
+      this.token = savedToken;
+    }
+  }
+
+  // Save user data to localStorage
+  saveUserData(user: any) {
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+  }
+
+  // Get user data from localStorage
+  getSavedUserData(): any | null {
+    const savedUser = localStorage.getItem(this.USER_KEY);
+    return savedUser ? JSON.parse(savedUser) : null;
+  }
+
+  // Check if user is authenticated
+  isAuthenticated(): boolean {
+    return !!this.token;
   }
 
   // Get base URL with multi-tenant support
@@ -252,59 +285,88 @@ class ApiClient {
     limit?: number;
     search?: string;
     status?: string;
+    role?: 'class' | 'subject';
+    subject?: string;
+    class?: string;
   }) {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.role) queryParams.append('role', params.role);
+    if (params?.subject) queryParams.append('subject', params.subject);
+    if (params?.class) queryParams.append('class', params.class);
 
     const queryString = queryParams.toString();
-    const endpoint = queryString ? `/teachers?${queryString}` : '/teachers';
+    const endpoint = queryString ? `/academics/teachers?${queryString}` : '/academics/teachers';
     return this.request(endpoint);
   }
 
   async getTeacher(id: string) {
-    return this.request(`/teachers/${id}`);
+    return this.request(`/academics/teachers/${id}`);
   }
 
   async createTeacher(teacherData: {
-    name: string;
+    teacherId: string;
+    firstName: string;
+    lastName: string;
     email: string;
-    subjects: string[];
-    classes: string[];
     phone?: string;
+    dateOfBirth?: string;
+    gender?: 'Male' | 'Female' | 'Other';
     address?: string;
     qualification?: string;
-    employmentDate?: string;
+    experience?: number;
+    isClassTeacher?: boolean;
+    assignedClass?: string;
+    isSubjectTeacher?: boolean;
+    subjects?: string[];
+    classes?: string[];
   }) {
-    return this.request('/teachers', {
+    return this.request('/academics/teachers', {
       method: 'POST',
       body: JSON.stringify(teacherData),
     });
   }
 
   async updateTeacher(id: string, teacherData: Partial<{
-    name: string;
+    teacherId: string;
+    firstName: string;
+    lastName: string;
     email: string;
+    phone: string;
+    dateOfBirth: string;
+    gender: 'Male' | 'Female' | 'Other';
+    address: string;
+    qualification: string;
+    experience: number;
+    isClassTeacher: boolean;
+    assignedClass: string;
+    isSubjectTeacher: boolean;
     subjects: string[];
     classes: string[];
     status: string;
-    phone: string;
-    address: string;
-    qualification: string;
-    employmentDate: string;
   }>) {
-    return this.request(`/teachers/${id}`, {
+    return this.request(`/academics/teachers/${id}`, {
       method: 'PUT',
       body: JSON.stringify(teacherData),
     });
   }
 
   async deleteTeacher(id: string) {
-    return this.request(`/teachers/${id}`, {
+    return this.request(`/academics/teachers/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  async getAvailableClassTeachers(excludeClass?: string) {
+    const queryParams = new URLSearchParams();
+    if (excludeClass) queryParams.append('excludeClass', excludeClass);
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/academics/teachers/available-class-teachers?${queryString}` : '/academics/teachers/available-class-teachers';
+    return this.request(endpoint);
   }
 
   // Academics endpoints
@@ -329,7 +391,7 @@ class ApiClient {
 
   async createClass(classData: {
     name: string;
-    formLevel: number;
+    formLevel: string; // Changed to string for flexible input
     stream: string;
     teacher: string;
     capacity: number;
@@ -342,7 +404,7 @@ class ApiClient {
 
   async updateClass(id: string, classData: Partial<{
     name: string;
-    formLevel: number;
+    formLevel: string; // Changed to string
     stream: string;
     teacher: string;
     capacity: number;
@@ -377,6 +439,8 @@ class ApiClient {
   async createSubject(subjectData: {
     name: string;
     code: string;
+    curriculum: '8-4-4' | 'International' | 'CBC' | 'American' | 'British' | 'Indian' | 'Nigerian' | 'South African';
+    formLevels: string[]; // Changed to string array for flexible input
     description?: string;
   }) {
     return this.request('/academics/subjects', {
@@ -388,6 +452,8 @@ class ApiClient {
   async updateSubject(id: string, subjectData: Partial<{
     name: string;
     code: string;
+    curriculum: '8-4-4' | 'International' | 'CBC' | 'American' | 'British' | 'Indian' | 'Nigerian' | 'South African';
+    formLevels: string[]; // Changed to string array for flexible input
     description: string;
   }>) {
     return this.request(`/academics/subjects/${id}`, {
@@ -1239,6 +1305,8 @@ class ApiClient {
   async customRequest(endpoint: string, options: RequestInit = {}) {
     return this.request(endpoint, options);
   }
+
+
 }
 
 // Create API instance

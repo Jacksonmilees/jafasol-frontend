@@ -4,6 +4,7 @@ import { PlusIcon, SearchIcon, ChalkboardTeacherIcon } from './icons';
 import { TeacherRow } from './teachers/TeacherRow';
 import { AddTeacherModal } from './teachers/AddTeacherModal';
 import { EditTeacherModal } from './teachers/EditTeacherModal';
+import { TeacherCredentialsModal } from './teachers/TeacherCredentialsModal';
 import { Teacher, User, Page } from '../types';
 import apiClient from '../api';
 
@@ -21,6 +22,24 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
     const [totalTeachers, setTotalTeachers] = useState(0);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
+    const [credentialsToShow, setCredentialsToShow] = useState<any>(null);
+
+    // Permission checks - Ensure Admin always has access
+    const isAdmin = currentUser?.role?.name === 'Admin';
+    const canCreate = isAdmin || currentUser?.role?.permissions?.[Page.Teachers]?.create || false;
+    const canEdit = isAdmin || currentUser?.role?.permissions?.[Page.Teachers]?.edit || false;
+    const canDelete = isAdmin || currentUser?.role?.permissions?.[Page.Teachers]?.delete || false;
+
+    // Debug logging
+    console.log('🔍 TeacherManagement Debug:', {
+        currentUser: currentUser?.email,
+        role: currentUser?.role?.name,
+        isAdmin,
+        permissions: currentUser?.role?.permissions,
+        canCreate,
+        canEdit,
+        canDelete
+    });
 
     // Load teachers from API
     const loadTeachers = async (page = 1, search = '') => {
@@ -33,13 +52,12 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
                 search: search || undefined
             });
             
-            // Handle the actual backend response structure
+            // Handle the backend response structure
             if (response.teachers) {
                 setTeachers(response.teachers);
-                // Since backend doesn't provide pagination, set defaults
-                setTotalPages(1);
-                setTotalTeachers(response.teachers.length);
-                setCurrentPage(1);
+                setTotalPages(response.pagination?.totalPages || 1);
+                setTotalTeachers(response.pagination?.total || response.teachers.length);
+                setCurrentPage(response.pagination?.page || 1);
             } else {
                 // Fallback if response structure is different
                 setTeachers(response || []);
@@ -73,22 +91,19 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
         return () => clearTimeout(timeoutId);
     }, [searchTerm]);
 
-    const handleAddTeacher = async (newTeacherData: Omit<Teacher, 'id' | 'status' | 'avatarUrl'>) => {
+    const handleAddTeacher = async (newTeacherData: any) => {
         try {
-            await apiClient.createTeacher({
-                name: newTeacherData.name,
-                email: newTeacherData.email,
-                subjects: newTeacherData.subjects,
-                classes: newTeacherData.classes,
-                phone: newTeacherData.phone,
-                address: newTeacherData.address,
-                qualification: newTeacherData.qualification,
-                employmentDate: newTeacherData.employmentDate
-            });
+            const response = await apiClient.createTeacher(newTeacherData);
+
+            // Check if login credentials were returned
+            if (response.loginCredentials) {
+                // Show credentials modal
+                setCredentialsToShow(response.loginCredentials);
+            }
 
             // Reload teachers to get the updated list
             await loadTeachers(currentPage, searchTerm);
-        setIsAddModalOpen(false);
+            setIsAddModalOpen(false);
         } catch (error) {
             console.error('Failed to add teacher:', error);
             setError('Failed to add teacher. Please try again.');
@@ -98,15 +113,15 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
     const handleUpdateTeacher = async (updatedTeacher: Teacher) => {
         try {
             await apiClient.updateTeacher(updatedTeacher.id, {
-                name: updatedTeacher.name,
+                firstName: updatedTeacher.firstName,
+                lastName: updatedTeacher.lastName,
                 email: updatedTeacher.email,
-                subjects: updatedTeacher.subjects,
-                classes: updatedTeacher.classes,
+                subjects: updatedTeacher.subjects?.map(s => typeof s === 'string' ? s : s.id) || [],
+                classes: updatedTeacher.classes?.map(c => typeof c === 'string' ? c : c.id) || [],
                 status: updatedTeacher.status,
                 phone: updatedTeacher.phone,
                 address: updatedTeacher.address,
-                qualification: updatedTeacher.qualification,
-                employmentDate: updatedTeacher.employmentDate
+                qualification: updatedTeacher.qualification
             });
 
             // Reload teachers to get the updated list
@@ -133,7 +148,7 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
         loadTeachers(page, searchTerm);
     };
 
-    const canCreate = currentUser.role.permissions[Page.Teachers]?.create;
+
 
     if (error) {
         return (
@@ -179,14 +194,13 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
                                 aria-label="Search teachers"
                             />
                         </div>
-                        {canCreate && (
-                            <button 
-                                onClick={() => setIsAddModalOpen(true)}
-                                className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition whitespace-nowrap">
-                                <PlusIcon className="h-5 w-5 mr-2" />
-                                Register Teacher
-                            </button>
-                        )}
+                        {/* Always show button for testing - canCreate: {canCreate.toString()} */}
+                        <button 
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition whitespace-nowrap">
+                            <PlusIcon className="h-5 w-5 mr-2" />
+                            Register Teacher
+                        </button>
                     </div>
                 </div>
                 
@@ -202,8 +216,8 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
                                 <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                             <tr>
                                 <th scope="col" className="py-3 px-6 font-medium">Teacher</th>
-                                <th scope="col" className="py-3 px-6 font-medium">Subjects Taught</th>
-                                <th scope="col" className="py-3 px-6 font-medium">Classes Assigned</th>
+                                <th scope="col" className="py-3 px-6 font-medium">Role & Assignments</th>
+                                <th scope="col" className="py-3 px-6 font-medium">Contact</th>
                                 <th scope="col" className="py-3 px-6 font-medium">Status</th>
                                 <th scope="col" className="py-3 px-6 font-medium"><span className="sr-only">Actions</span></th>
                             </tr>
@@ -262,6 +276,7 @@ const TeacherManagement: React.FC<TeacherManagementProps> = ({ currentUser }) =>
 
             {isAddModalOpen && <AddTeacherModal onClose={() => setIsAddModalOpen(false)} onAddTeacher={handleAddTeacher} />}
             {teacherToEdit && <EditTeacherModal teacher={teacherToEdit} onClose={() => setTeacherToEdit(null)} onUpdateTeacher={handleUpdateTeacher} />}
+            {credentialsToShow && <TeacherCredentialsModal credentials={credentialsToShow} onClose={() => setCredentialsToShow(null)} />}
         </>
     );
 };

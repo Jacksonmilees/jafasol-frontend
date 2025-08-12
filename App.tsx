@@ -55,6 +55,7 @@ const App = () => {
   const [authScreen, setAuthScreen] = useState<'login' | 'register' | '2fa' | '2fa-setup'>('login');
   const [userFor2FA, setUserFor2FA] = useState<User | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true); // Add loading state for auth check
   
   // State for real data from API
   const [users, setUsers] = useState<User[]>([]);
@@ -62,6 +63,35 @@ const App = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Restore authentication state on app initialization
+  useEffect(() => {
+    const restoreAuthState = async () => {
+      try {
+        // Check if we have saved user data and token
+        if (apiClient.isAuthenticated()) {
+          const savedUser = apiClient.getSavedUserData();
+          if (savedUser) {
+            console.log('🔄 Restoring authentication state...');
+            setCurrentUser(savedUser);
+            console.log('✅ Authentication state restored for:', savedUser.email);
+          } else {
+            // Token exists but no user data, clear everything
+            console.log('⚠️ Token found but no user data, clearing session');
+            apiClient.clearToken();
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error restoring auth state:', error);
+        // Clear potentially corrupted data
+        apiClient.clearToken();
+      } finally {
+        setIsAuthChecking(false);
+      }
+    };
+
+    restoreAuthState();
+  }, []);
 
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -189,16 +219,19 @@ const App = () => {
   };
 
   const handleLogout = async () => {
+    console.log('🚪 Logging out user...');
     try {
       await apiClient.logout();
     } catch (error) {
       console.error('Logout API call failed:', error);
     } finally {
+      // Clear authentication data from API client and localStorage
       apiClient.clearToken();
-    // Check if user is admin (role is an object)
-    const isAdmin = user.role.name === 'Admin';
-      setAuthScreen('login');
+      setCurrentUser(null);
       setCurrentPage(Page.Dashboard);
+      setUserFor2FA(null);
+      setAuthScreen('login');
+      console.log('✅ User logged out successfully');
     }
   };
   
@@ -254,6 +287,18 @@ const App = () => {
   };
 
   const renderContent = () => {
+    // Show loading spinner while checking authentication
+    if (isAuthChecking) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Checking authentication...</p>
+          </div>
+        </div>
+      );
+    }
+
     if (!currentUser) {
       switch (authScreen) {
         case 'login':
@@ -379,12 +424,18 @@ const App = () => {
                       addAuditLog={addAuditLog}
                     />
                   )}
-                  {currentPage === Page.Timetable && (
-                    <Timetable
-                      currentUser={currentUser}
-                      addAuditLog={addAuditLog}
-                    />
-                  )}
+                          {currentPage === Page.Timetable && (
+          <Timetable
+            currentUser={currentUser}
+            addAuditLog={addAuditLog}
+          />
+        )}
+        {currentPage === Page.Settings && (
+          <Settings
+            currentUser={currentUser}
+            addAuditLog={addAuditLog}
+          />
+        )}
                   {currentPage === Page.Exams && (
                     <Exams
                       currentUser={currentUser}

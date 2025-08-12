@@ -98,16 +98,30 @@ export interface Student {
 
 export interface Teacher {
   id: string;
+  teacherId: string;
   name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   phone?: string;
+  dateOfBirth?: string;
+  gender?: 'Male' | 'Female' | 'Other';
   address?: string;
   qualification?: string;
-  employmentDate?: string;
-  email: string;
-  avatarUrl: string;
-  subjects: string[];
-  classes: string[];
-  status: 'Active' | 'On-leave' | 'Terminated';
+  experience?: number;
+  
+  // Class Teacher Role (1:1)
+  isClassTeacher: boolean;
+  assignedClass?: SchoolClass | null;
+  
+  // Subject Teacher Role (M:M)
+  isSubjectTeacher: boolean;
+  subjects: Subject[]; // Subjects they teach
+  classes: SchoolClass[]; // Classes they teach subjects in
+  
+  status: 'Active' | 'Inactive' | 'On-leave' | 'Retired';
+  createdAt?: string;
+  avatarUrl?: string;
 }
 
 export interface DashboardStats {
@@ -148,22 +162,90 @@ export interface AcademicYear {
   termEndDate: string;
 }
 
+export interface TimeSlot {
+  day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+  period: 'Morning' | 'Afternoon' | 'Evening';
+}
+
 export interface Subject {
   id: string;
   name: string;
   code: string;
-  curriculum: '8-4-4' | 'International';
-  formLevels: number[];
+  curriculum: '8-4-4' | 'International' | 'CBC' | 'American' | 'British' | 'Indian' | 'Nigerian' | 'South African';
+  formLevels: string[]; // Changed to string array for flexible input (Primary, Grade 1-12, Year 1-13, etc.)
+  description?: string;
+  status: 'Active' | 'Inactive';
+  
+  // Timetabling constraints
+  periodsPerWeek: number;
+  periodDuration: number; // in minutes
+  difficultyLevel: 'Low' | 'Medium' | 'High';
+  preferredTimeSlots: TimeSlot[];
+  requiresLab: boolean;
+  requiresEquipment: string[];
+  canBeDoublePeriod: boolean;
+  examDuration: number; // in minutes
+  subjectCategory: 'Core' | 'Science' | 'Arts' | 'Language' | 'Mathematics' | 'Physical Education' | 'Technical' | 'Optional';
+  assignedTeachers: string[]; // Teacher IDs
 }
 
 export interface SchoolClass {
-    id:string;
+    id: string;
     name: string;
-    formLevel: number;
+    formLevel: string; // Changed to string for flexible input
     stream: string;
-    teacher: string; // Display name of class teacher
+    teacher?: string | null; // Display name of class teacher (optional)
     students: number;
-    classTeacherId?: string; // Formal ID of the class teacher (User ID)
+    classTeacherId?: string | null; // Formal ID of the class teacher (optional)
+    capacity?: number; // Class capacity
+    academicYear?: string; // Academic year
+    status?: 'Active' | 'Inactive' | 'Graduated'; // Class status
+}
+
+// Timetabling interfaces
+export interface Period {
+  id: string;
+  name: string;
+  startTime: string; // "08:00"
+  endTime: string; // "08:40"
+  duration: number; // in minutes
+  type: 'Teaching' | 'Break' | 'Lunch' | 'Assembly' | 'Study';
+}
+
+export interface SchoolDay {
+  day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+  periods: Period[];
+}
+
+export interface TimetableSlot {
+  id: string;
+  classId: string;
+  subjectId: string;
+  teacherId: string;
+  day: string;
+  periodId: string;
+  roomId?: string;
+  isExam?: boolean;
+  examType?: 'Midterm' | 'Final' | 'Quiz' | 'Practical';
+}
+
+export interface Timetable {
+  id: string;
+  name: string;
+  academicYear: string;
+  term: string;
+  type: 'Teaching' | 'Exam';
+  status: 'Draft' | 'Active' | 'Archived';
+  slots: TimetableSlot[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimetableConstraint {
+  type: 'TeacherUnavailable' | 'RoomUnavailable' | 'ClassUnavailable' | 'SubjectPreference' | 'NoConsecutiveDifficult';
+  description: string;
+  severity: 'Hard' | 'Soft'; // Hard = must not violate, Soft = prefer not to violate
+  params: Record<string, any>;
 }
 
 export interface Exam {

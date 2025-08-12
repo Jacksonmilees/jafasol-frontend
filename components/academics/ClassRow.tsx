@@ -26,8 +26,8 @@ export const ClassRow: React.FC<ClassRowProps> = ({ schoolClass, onEdit, onDelet
         };
     }, [menuRef]);
 
-    const canEdit = currentUser.role.permissions[Page.Academics]?.edit;
-    const canDelete = currentUser.role.permissions[Page.Academics]?.delete;
+    const canEdit = currentUser?.role?.permissions?.[Page.Academics]?.edit;
+    const canDelete = currentUser?.role?.permissions?.[Page.Academics]?.delete;
 
     return (
         <tr className="border-b border-slate-200 hover:bg-slate-50">
